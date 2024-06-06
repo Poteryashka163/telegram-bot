@@ -11,4 +11,5 @@ import java.util.List;
 public interface TelegramBotRepository extends JpaRepository<NotificationTask,Long> {
     List<NotificationTask> findByIsSentFalseAndScheduledTimeBefore(LocalDateTime now);
     List<NotificationTask> findByIsSentTrue();
+    List<NotificationTask> findByIsSentFalse();
 }
