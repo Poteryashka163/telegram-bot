@@ -59,6 +59,8 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                 }
                 else if (text.startsWith("/remind")) {
                     createNotificationTask(text, messageText.chat().id());
+                }else if ("/list".equals(text)) {
+                    listRemainingNotifications(messageText.chat().id());
                 }
 
                 else {
@@ -70,13 +72,14 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     }
     private void sendWelcomeMessage(Long chatId) {
         logger.info("Processing update: Sending welcome message");
-        String welcomeMessage = "Welcome to our bot!";
+        String welcomeMessage = "Welcome to our bot!" + "Enter /info to help";
         SendMessage request = new SendMessage(chatId, welcomeMessage);
         telegramBot.execute(request);
     }
     private void sendInfoMessage(Long chatId) {
         logger.info("Processing: Sending info message");
-        String infoMessage = "Expected format: 'dd.MM.yyyy HH:mm message'";
+        String infoMessage = "To create Notification enter /remind dd.MM.yyyy HH:mm message." +
+                "To view the remaining Notification enter /list.";
         SendMessage request = new SendMessage(chatId, infoMessage);
         telegramBot.execute(request);
     }
@@ -94,7 +97,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     }
 
     public void createNotificationTask(String text, Long chatId) {
-        // Пример текста: "/remind 01.01.2023 12:00 Встреча с командой"
+        logger.info("Processing: Create notification task");
         String[] parts = text.split(" ", 3);
         if (parts.length < 3) {
             requestNotRecognized(chatId);
@@ -119,6 +122,20 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             requestNotRecognized(chatId);
         }
     }
-
+    private void listRemainingNotifications(Long chatId) {
+        List<NotificationTask> tasks = telegramBotRepository.findByIsSentFalse();
+        if (tasks.isEmpty()) {
+            telegramBot.execute(new SendMessage(chatId, "No remaining notifications."));
+        } else {
+            StringBuilder response = new StringBuilder("Remaining notifications:\n");
+            tasks.forEach(task -> {
+                response.append(formatter.format(task.getScheduledTime()))
+                        .append(" - ")
+                        .append(task.getMessage())
+                        .append("\n");
+            });
+            telegramBot.execute(new SendMessage(chatId, response.toString()));
+        }
+    }
 
 }

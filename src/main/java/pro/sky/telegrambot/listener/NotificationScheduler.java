@@ -9,6 +9,8 @@ import pro.sky.telegrambot.repository.TelegramBotRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Component
 public class NotificationScheduler {
@@ -19,7 +21,14 @@ public class NotificationScheduler {
     @Autowired
     private TelegramBot telegramBot;
 
+    private final ExecutorService executorService = Executors.newFixedThreadPool(2);
+
     @Scheduled(fixedRate = 60000)
+    public void processNotifications() {
+        executorService.submit(this::sendNotifications);
+        executorService.submit(this::cleanUpOldNotifications);
+    }
+
     public void sendNotifications() {
         List<NotificationTask> tasks = telegramBotRepository.findByIsSentFalseAndScheduledTimeBefore(LocalDateTime.now());
 
@@ -30,10 +39,14 @@ public class NotificationScheduler {
         });
     }
 
+    public void cleanUpOldNotifications() {
+        List<NotificationTask> oldTasks = telegramBotRepository.findByIsSentTrue();
+        oldTasks.forEach(task -> telegramBotRepository.delete(task));
+    }
+
     private void sendNotification(NotificationTask task) {
         Long chatId = Long.parseLong(task.getRecipient());
         String message = task.getMessage();
-        SendMessage request = new SendMessage(chatId, message);
-        telegramBot.execute(request);
+        telegramBot.execute(new SendMessage(chatId, message));
     }
 }
